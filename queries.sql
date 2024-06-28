@@ -1,295 +1,227 @@
 /*
-Covid 19 Data Exploration 
 
-Skills used: Joins, CTE's, Temp Tables, Windows Functions, Aggregate Functions, Creating Views, Converting Data Types
+Cleaning Data in SQL Queries
 
 */
 
-/* Creating the death table */
+-- Creating the table --
+DROP TABLE IF EXISTS Nashville_housing_data;
 
-CREATE TABLE covid_data_death (
-"iso_code" TEXT,
-"continent" TEXT,
-"location" TEXT,
-"date" TEXT,
-"population" INT,
-"total_cases" FLOAT,
-"new_cases" FLOAT,
-"new_cases_smoothed" FLOAT,
-"total_deaths" FLOAT,
-"new_deaths" FLOAT,
-"new_deaths_smoothed" FLOAT,
-"total_cases_per_million" FLOAT,
-"new_cases_per_million" FLOAT,
-"new_cases_smoothed_per_million" FLOAT,
-"total_deaths_per_million" FLOAT,
-"new_deaths_per_million" FLOAT,
-"new_deaths_smoothed_per_million" FLOAT,
-"reproduction_rate" FLOAT,
-"icu_patients" FLOAT,
-"icu_patients_per_million" FLOAT,
-"hosp_patients" FLOAT,
-"hosp_patients_per_million" FLOAT,
-"weekly_icu_admissions" FLOAT,
-"weekly_icu_admissions_per_million" FLOAT,
-"weekly_hosp_admissions" FLOAT,
-"weekly_hosp_admissions_per_million" FLOAT
+CREATE TABLE Nashville_housing_data (
+    UniqueID INTEGER,
+    ParcelID VARCHAR(255),
+    Landuse VARCHAR(255),
+    ProperyAddress VARCHAR(255),
+    SaleDate VARCHAR(255),
+    salePrice INT,
+    LegalReference VARCHAR(255),
+    SoldAsVacant VARCHAR(255),
+    OwnerName VARCHAR(255),
+    OwnerAddress VARCHAR(255),
+    Acreage FLOAT,
+    TaxDistrict VARCHAR(255),
+    LandValue INT,
+    BuildingValue INT,
+    TotalValue INT,
+    YearBuilt INT,
+    Bedrooms INT,
+    FullBath INT,
+    HalfBath INT
 );
 
-COPY covid_data_death FROM 'C:\Program Files\PostgreSQL\datasets\coviddeaths.csv' WITH (FORMAT csv, HEADER true);
+SELECT saleprice FROM Nashville_housing_data;
 
-ALTER TABLE covid_data_death ALTER COLUMN population TYPE BIGINT;
+UPDATE Nashville_housing_data
+SET saleprice = TRIM(REPLACE(REPLACE(REPLACE(saleprice, ',', ''), '$', ''), ' ', ''));
 
-ALTER TABLE covid_data_death ALTER COLUMN date TYPE TIMESTAMP WITHOUT TIME ZONE USING date::timestamp;
+ALTER TABLE Nashville_housing_data ALTER COLUMN saleprice TYPE INT USING saleprice::INT;
 
-SELECT * FROM covid_data_death;
+ALTER TABLE Nashville_housing_data RENAME COLUMN properyaddress TO propertyaddress;
 
-/* Creating the vaccination table */
+SELECT * FROM Nashville_housing_data;
 
-CREATE TABLE covid_vacination_data ( 
-"iso_code" TEXT, 
-"continent" TEXT, 
-"location" TEXT, 
-"date" TEXT, 
-"total_tests" FLOAT, 
-"new_tests" FLOAT, 
-"total_tests_per_thousand" FLOAT, 
-"new_tests_per_thousand" FLOAT, 
-"new_tests_smoothed" FLOAT, 
-"new_tests_smoothed_per_thousand" FLOAT, 
-"positive_rate" FLOAT, 
-"tests_per_case" FLOAT, 
-"tests_units" TEXT, 
-"total_vaccinations" FLOAT, 
-"people_vaccinated" FLOAT, 
-"people_fully_vaccinated" FLOAT, 
-"total_boosters" FLOAT, 
-"new_vaccinations" FLOAT, 
-"new_vaccinations_smoothed" FLOAT, 
-"total_vaccinations_per_hundred" FLOAT, 
-"people_vaccinated_per_hundred" FLOAT, 
-"people_fully_vaccinated_per_hundred" FLOAT, 
-"total_boosters_per_hundred" FLOAT, 
-"new_vaccinations_smoothed_per_million" FLOAT, 
-"new_people_vaccinated_smoothed" FLOAT, 
-"new_people_vaccinated_smoothed_per_hundred" FLOAT, 
-"stringency_index" FLOAT, 
-"population_density" FLOAT, 
-"median_age" FLOAT, 
-"aged_65_older" FLOAT, 
-"aged_70_older" FLOAT, 
-"gdp_per_capita" FLOAT, 
-"extreme_poverty" FLOAT, 
-"cardiovasc_death_rate" FLOAT, 
-"diabetes_prevalence" FLOAT, 
-"female_smokers" FLOAT, 
-"male_smokers" FLOAT, 
-"handwashing_facilities" FLOAT, 
-"hospital_beds_per_thousand" FLOAT, 
-"life_expectancy" FLOAT, 
-"human_development_index" FLOAT, 
-"excess_mortality_cumulative_absolute" FLOAT, 
-"excess_mortality_cumulative" FLOAT, 
-"excess_mortality" FLOAT, 
-"excess_mortality_cumulative_per_million" FLOAT );
 
-COPY covid_vacination_data FROM 'C:\Program Files\PostgreSQL\datasets\covidvacination.csv' WITH (FORMAT csv, HEADER true);
+-- Standardize Date Format
 
-ALTER TABLE covid_vacination_data ALTER COLUMN date TYPE TIMESTAMP WITHOUT TIME ZONE USING date::timestamp;
+ALTER TABLE Nashville_housing_data ALTER COLUMN saledate TYPE DATE USING saledate::date;
 
-SELECT * FROM covid_vacination_data;
+SELECT saledate FROM Nashville_housing_data;
 
-/* Data to analyze */
+SELECT saledate, CAST(saledate AS DATE)
+FROM Nashville_housing_data;
 
-SELECT location, date, total_cases, new_cases, total_deaths, population 
-FROM covid_data_death
-WHERE continent is not null
-ORDER BY 1,2;
+UPDATE Nashville_housing_data
+SET saledate = CAST(saledate AS DATE);
 
-/* Analyzing total cases and the percentage of total_death */
+SELECT * FROM Nashville_housing_data;
 
-SELECT location, date, total_cases, total_deaths, (total_deaths / total_cases) * 100 AS Death_Percentage
-FROM covid_data_death
-WHERE continent is not null
-ORDER BY 1,2;
-
-/* This query shows the likelihood of dying if you contact covid in nigeria */
-
-SELECT location, date, total_cases, total_deaths, (total_deaths / total_cases) * 100 AS Death_Percentage
-FROM covid_data_death
-WHERE location like '%Nigeria%'
-and continent is not null
-ORDER BY 1,2;
-
-/* Analyzing total cases versus population */
-/* This shows the percentage of people with covid */
-
-SELECT location, date, population, total_cases, (total_cases / population) * 100 AS population_Percentage
-FROM covid_data_death
-WHERE location like '%Nigeria%'
-ORDER BY 1,2;
-
-/* countries with higher infection rate compared to population */
-
-SELECT location, population, max(total_cases) AS HighInfectionCount, max((total_cases / population)) * 100 AS population_Percentage_infected
-FROM covid_data_death
-WHERE continent is not null
-GROUP BY location, population
-ORDER BY population_percentage_infected DESC;
-
-/* countries with highest death rate per population */
-
-SELECT location, MAX(cast(total_deaths as INT)) AS total_death_count
-FROM covid_data_death
-WHERE continent is not null
-GROUP BY location
-ORDER BY total_death_count DESC;
-
-/* BREAKING THINGS DOWN BY CONTINENT */
-
-/* Showing contintents with the highest death count per population */
-
-SELECT continent, MAX(cast(total_deaths as INT)) AS total_death_count
-FROM covid_data_death
-WHERE continent is not null
-GROUP BY continent
-ORDER BY total_death_count DESC;
-
-/* Global Numbers */
-
-SELECT 
-    date, 
-    SUM(new_cases) AS total_new_cases, 
-    SUM(CAST(new_deaths AS INT)) AS total_death_cases, 
-    CASE 
-        WHEN SUM(new_cases) = 0 THEN 0 
-        ELSE SUM(CAST(new_deaths AS INT)) / SUM(New_Cases) * 100 
-    END AS global_death_percentage
-FROM 
-    covid_data_death
-WHERE 
-    continent IS NOT NULL
-GROUP BY 
-    date
-ORDER BY 
-    1,2 DESC;
-	
-SELECT  
-    SUM(new_cases) AS total_new_cases, 
-    SUM(CAST(new_deaths AS INT)) AS total_death_cases, 
-    CASE 
-        WHEN SUM(new_cases) = 0 THEN 0 
-        ELSE SUM(CAST(new_deaths AS INT)) / SUM(New_Cases) * 100 
-    END AS global_death_percentage
-FROM 
-    covid_data_death
-WHERE 
-    continent IS NOT NULL
-ORDER BY 
-    1,2 DESC;
-
-/* Total Population vs Vacinations */
-
-SELECT * FROM covid_vacination_data;
+-- Populate Property Address
 
 SELECT * 
-FROM covid_data_death AS dea
-JOIN covid_vacination_data AS vac
-ON dea.location = vac.location
-AND dea.date = vac.date;
+FROM Nashville_housing_data
+WHERE propertyaddress IS NULL
+ORDER BY parcelid;
 
-SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
-FROM covid_data_death AS dea
-JOIN covid_vacination_data AS vac
-ON dea.location = vac.location
-AND dea.date = vac.date
-WHERE dea.continent is not null
-ORDER BY 2,3;
-
-SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
-SUM(CAST(vac.new_vaccinations AS INT)) OVER(PARTITION BY dea.location ORDER BY dea.location, dea.date) AS Rollingpeoplevacinated
-FROM covid_data_death AS dea
-JOIN covid_vacination_data AS vac
-ON dea.location = vac.location
-AND dea.date = vac.date
-WHERE dea.continent is not null
-ORDER BY 2,3;
+SELECT table1.parcelid, table1.propertyaddress, table2.parcelid, table2.propertyaddress
+FROM Nashville_housing_data AS table1
+JOIN Nashville_housing_data AS table2
+ON table1.parcelid = table2.parcelid
+AND table1.uniqueid != table2.uniqueid
+WHERE table1.propertyaddress IS NULL;
 
 
-/*  Using CTE to perform Calculation on Partition By in previous query */
+SELECT table1.parcelid, table1.propertyaddress, table2.parcelid, table2.propertyaddress, COALESCE(table1.propertyaddress, table2.propertyaddress)
+FROM Nashville_housing_data AS table1
+JOIN Nashville_housing_data AS table2
+ON table1.parcelid = table2.parcelid
+AND table1.uniqueid != table2.uniqueid
+WHERE table1.propertyaddress IS NULL;
 
-WITH PopsVac (Continent, Location, Date, Population, New_Vaccinations, RollingPeopleVaccinated) AS
-(SELECT dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
-SUM(CAST(vac.new_vaccinations AS INT)) OVER(PARTITION BY dea.location ORDER BY dea.location, dea.date) AS RollingPeopleVaccinated
-FROM covid_data_death AS dea
-JOIN covid_vacination_data AS vac
-ON dea.location = vac.location
-AND dea.date = vac.date
-WHERE dea.continent is not null
+UPDATE Nashville_housing_data AS table1
+SET propertyaddress = COALESCE(table1.propertyaddress, table2.propertyaddress)
+FROM Nashville_housing_data AS table2
+WHERE table1.parcelid = table2.parcelid
+AND table1.uniqueid != table2.uniqueid
+AND table1.propertyaddress IS NULL;
+
+SELECT propertyaddress FROM Nashville_housing_data;
+
+		  
+SELECT
+SUBSTRING(propertyaddress FROM 1 FOR POSITION(',' IN propertyaddress) - 1) AS address,
+SUBSTRING(propertyaddress FROM POSITION(',' IN propertyaddress) + 1) AS address
+FROM Nashville_housing_data;
+
+ALTER TABLE Nashville_housing_data
+ADD COLUMN propertysplitaddress VARCHAR(255);
+
+UPDATE Nashville_housing_data
+SET propertysplitaddress = SUBSTRING(propertyaddress FROM 1 FOR POSITION(',' IN propertyaddress) - 1);
+
+ALTER TABLE Nashville_housing_data
+ADD COLUMN propertysplitcity VARCHAR(255);
+
+UPDATE Nashville_housing_data
+SET propertysplitcity = SUBSTRING(propertyaddress FROM POSITION(',' IN propertyaddress) + 1);
+
+
+SELECT * FROM Nashville_housing_data;
+
+SELECT 	owneraddress FROM Nashville_housing_data;
+
+SELECT 
+PARSENAME(REPLACE(',', '.'), 1),
+PARSENAME(REPLACE(',', '.'), 2),
+PARSENAME(REPLACE(',', '.'), 3)
+FROM Nashville_housing_data;
+
+SELECT
+  SPLIT_PART(owneraddress, ',', 1) AS part_1,
+  SPLIT_PART(owneraddress, ',', 2) AS part_2,
+  SPLIT_PART(owneraddress, ',', 3) AS part_3
+FROM Nashville_housing_data;
+
+ALTER TABLE Nashville_housing_data
+ADD COLUMN ownersplitaddress VARCHAR(255);
+
+UPDATE Nashville_housing_data
+SET ownersplitaddress =   SPLIT_PART(owneraddress, ',', 1);
+
+ALTER TABLE Nashville_housing_data
+ADD COLUMN ownersplitcity VARCHAR(255);
+
+UPDATE Nashville_housing_data
+SET ownersplitcity = SPLIT_PART(owneraddress, ',', 2);
+
+ALTER TABLE Nashville_housing_data
+ADD COLUMN ownersplitstate VARCHAR(255);
+
+UPDATE Nashville_housing_data
+SET ownersplitstate = SPLIT_PART(owneraddress, ',', 3);
+
+
+-- Change Y and N to Yes and No in "Sold as Vacant" field
+
+SELECT DISTINCT soldasvacant FROM Nashville_housing_data;
+
+SELECT DISTINCT soldasvacant, COUNT(soldasvacant)
+FROM Nashville_housing_data
+GROUP BY soldasvacant
+ORDER BY COUNT(soldasvacant);
+
+SELECT soldasvacant,
+CASE
+    WHEN soldasvacant = 'Y' THEN 'Yes'
+	WHEN soldasvacant = 'N' THEN 'No'
+	ELSE soldasvacant
+	END AS Vacantsales
+FROM Nashville_housing_data;
+
+UPDATE Nashville_housing_data
+SET soldasvacant = CASE
+    WHEN soldasvacant = 'Y' THEN 'Yes'
+	WHEN soldasvacant = 'N' THEN 'No'
+	ELSE soldasvacant
+	END;
+
+
+-- Remove Duplicates
+
+SELECT *,
+ROW_NUMBER() OVER(PARTITION BY ParcelID,
+				 PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 ORDER BY
+					UniqueID)
+FROM Nashville_housing_data
+ORDER BY parcelid;
+
+WITH RowNumCte AS (
+SELECT *,
+ROW_NUMBER() OVER(PARTITION BY ParcelID,
+				 PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 ORDER BY
+					UniqueID)
+FROM Nashville_housing_data
+ORDER BY parcelid
 )
-SELECT *, (CAST(RollingPeopleVaccinated AS FLOAT) / CAST(population AS FLOAT)) * 100 AS vaccination_percentage
-FROM PopsVac;
+SELECT *
+FROM RowNumCte
+WHERE row_number > 1
+ORDER BY propertyaddress;
 
-/* TEMP TABLE */
-
--- Step 1: Drop the Temporary Table if it Exists
-DROP TABLE IF EXISTS percent_population_vaccinated;
-
--- Step 2: Create the Temporary Table
-CREATE TEMP TABLE percent_population_vaccinated
-(
-    continent VARCHAR(255),
-    location VARCHAR(255),
-    date TIMESTAMP,
-    population NUMERIC,
-    new_vaccinations NUMERIC,
-    rolling_people_vaccinated NUMERIC
+WITH RowNumCte AS (
+    SELECT *,
+           ROW_NUMBER() OVER(PARTITION BY ParcelID,
+                                             PropertyAddress,
+                                             SalePrice,
+                                             SaleDate,
+                                             LegalReference
+                            ORDER BY
+                                UniqueID) AS row_number
+    FROM Nashville_housing_data
+)
+DELETE FROM Nashville_housing_data
+WHERE UniqueID IN (
+    SELECT UniqueID
+    FROM RowNumCte
+    WHERE row_number > 1
 );
 
--- Step 3: Insert Data into the Temporary Table
-INSERT INTO percent_population_vaccinated (continent, location, date, population, new_vaccinations, rolling_people_vaccinated)
-SELECT 
-    dea.continent, 
-    dea.location, 
-    dea.date, 
-    dea.population, 
-    vac.new_vaccinations,
-    SUM(CAST(vac.new_vaccinations AS INT)) OVER (PARTITION BY dea.location ORDER BY dea.date) AS rolling_people_vaccinated
-FROM 
-    covid_data_death AS dea
-JOIN 
-    covid_vacination_data AS vac
-ON 
-    dea.location = vac.location
-AND 
-    dea.date = vac.date;
 
--- Step 4: Select Data from the Temporary Table and Calculate Vaccination Percentage
-SELECT 
-    *, 
-    (CAST(rolling_people_vaccinated AS FLOAT) / CAST(population AS FLOAT)) * 100 AS vaccination_percentage
-FROM 
-    percent_population_vaccinated;
-	
+-- Delete Unused Columns
 
-/* Creating views for visualization */
+SELECT * FROM Nashville_housing_data;
 
-CREATE VIEW percent_population_vaccinated AS
-SELECT 
-    dea.continent, 
-    dea.location, 
-    dea.date, 
-    dea.population, 
-    vac.new_vaccinations,
-    SUM(CAST(vac.new_vaccinations AS INT)) OVER (PARTITION BY dea.location ORDER BY dea.date) AS rolling_people_vaccinated
-FROM 
-    covid_data_death AS dea
-JOIN 
-    covid_vacination_data AS vac
-ON 
-    dea.location = vac.location
-AND 
-    dea.date = vac.date
-WHERE dea.continent is not null;
+ALTER TABLE Nashville_housing_data
+DROP COLUMN owneraddress,
+DROP COLUMN taxdistrict,
+DROP COLUMN propertyaddress;
 
-SELECT * FROM percent_population_vaccinated;
+
+
